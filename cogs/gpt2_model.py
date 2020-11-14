@@ -7,6 +7,8 @@ import time
 import re
 import os
 
+checkpoint_model = 'run_flat_earth_v6'
+
 class TextGen(commands.Cog):
     
     def __init__(self, client):
@@ -26,7 +28,7 @@ class TextGen(commands.Cog):
     def init_model(self):
         self.sess = gpt2.start_tf_sess()
         print("LOADING GPT2 CHECKPOINT")
-        gpt2.load_gpt2(self.sess, run_name='run_flat_earth_v4')
+        gpt2.load_gpt2(self.sess, run_name=checkpoint_model)
         
     @commands.Cog.listener()
     async def on_ready(self):
@@ -50,9 +52,11 @@ class TextGen(commands.Cog):
                      ]
         
         print("ON CONNECT")
-        time.sleep(1.5)
         try:
-            await self.main_channel.send(sentences[random.randrange(len(sentences))])
+            channel = self.get_channel(776592860723937301)
+            time.sleep(.5)
+            await channel.send("Flat-Earth Model V6.0 loaded")
+            #await self.main_channel.send(sentences[random.randrange(len(sentences))])
         except:
             print("main channel not loaded")
         
@@ -133,7 +137,7 @@ class TextGen(commands.Cog):
             logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
             
             texts = gpt2.generate(self.sess,
-                run_name='run_flat_earth_v4',
+                run_name=checkpoint_model,
                 length=100,
                 temperature=0.75,
                 top_p=0.9,
@@ -183,7 +187,7 @@ class TextGen(commands.Cog):
             logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
             
             texts = gpt2.generate(self.sess,
-                run_name='run_flat_earth_v4',
+                run_name=checkpoint_model,
                 length=100,
                 temperature=0.75,
                 top_p=0.9,
@@ -221,6 +225,51 @@ class TextGen(commands.Cog):
                     continue
                 time.sleep(min(random.random()*5, 0.5))
                 await ctx.send(line)
+                
+    @commands.command()
+    async def BenjiBot(self, ctx, *, prompt):
+        async with ctx.typing():
+            start = time.time()
+            print(f'BenjiBot received msg: {prompt} from channel {ctx.message.channel} with msg: {ctx.message.content}')
+            logging.info(f'BenjiBot received msg: {prompt} from channel {ctx.message.channel}')
+            
+            #augment prompt with contextual information for GPT-2
+            augmented_prompt = f" {str(ctx.message.author)[:5]}: \n {prompt} \n BenjiMcmuscles:"
+            logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
+            
+            texts = gpt2.generate(self.sess,
+                run_name=checkpoint_model,
+                length=100,
+                temperature=0.75,
+                top_p=0.9,
+                prefix=augmented_prompt,
+                truncate="<|end|>",
+                return_as_list=True,
+                nsamples=6
+                )
+            logging.info(f'Generating response took {round(time.time() - start, 2)} seconds')
+            
+            filtered_responses = []
+            for i, text in enumerate(texts):
+                # clean generated text
+                clean_text = ''.join(text.split("BenjiMcmuscles:", 1)[1:]) #in case no end token generated, split on username
+                clean_text = re.sub(' +', ' ', clean_text)
+                clean_text = clean_text.strip()
+                logging.info(f'BenjiBot cleaned response {i}:\n{clean_text}')
+                #check for low effort responses
+                if len(clean_text.split()) <= 1:
+                    # discourage one word responses
+                    logging.info(f'response {i} is less than 2 characters long')
+                    if random.random() > 0.5:
+                        print('filtering short response')
+                        continue
+                filtered_responses.append(clean_text)
+            
+            # select random text from generated texts
+            response = filtered_responses[random.randrange(len(filtered_responses))]
+            logging.info(f'\BenjiBot chosen response:\n{response}')
+            
+            await ctx.send(response)
                 
         
 def setup(client):
