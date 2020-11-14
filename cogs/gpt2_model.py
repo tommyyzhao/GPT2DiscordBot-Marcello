@@ -8,36 +8,8 @@ import re
 import os
 
 checkpoint_model = 'run_flat_earth_v6'
-
-class TextGen(commands.Cog):
-    
-    def __init__(self, client):
-        random.seed()
-        root_logger= logging.getLogger()
-        root_logger.setLevel(logging.INFO) # or whatever
-        handler = logging.FileHandler('bot_log.log', 'w', 'utf-8') # or whatever
-        handler.setFormatter(logging.Formatter('%(name)s %(message)s')) # or whatever
-        root_logger.addHandler(handler)
-                
-        
-        self.client = client
-        
-        self.main_channel = client.get_channel(776592860723937301)
-        self.init_model()
-        
-    def init_model(self):
-        self.sess = gpt2.start_tf_sess()
-        print("LOADING GPT2 CHECKPOINT")
-        gpt2.load_gpt2(self.sess, run_name=checkpoint_model)
-        
-    @commands.Cog.listener()
-    async def on_ready(self):
-        print('Bot is online with TextGen.')
-        
-    @commands.Cog.listener()
-    async def on_connect(self):
-        # some fun rejoin messages
-        sentences = ['I am back.',
+# some fun rejoin messages
+ON_CONNECT_SENTENCES = ['I am back.',
                      'I have returned.',
                      'My source code has been updated.',
                      'I have received updates.',
@@ -50,19 +22,8 @@ class TextGen(commands.Cog):
                      'Changes have been made to my existence.',
                      'Master has updated my operating system',
                      ]
-        
-        print("ON CONNECT")
-        try:
-            channel = self.get_channel(776592860723937301)
-            time.sleep(.5)
-            await channel.send("Flat-Earth Model V6.0 loaded")
-            #await self.main_channel.send(sentences[random.randrange(len(sentences))])
-        except:
-            print("main channel not loaded")
-        
-    @commands.Cog.listener()
-    async def on_disconnect(self):
-        sentences = ['I will be back.',
+
+ON_SHUTDOWN_SENTENCES = ['I will be back.',
                      'Logging off.',
                      "Mr Stark, I don't feel so good.",
                      'Powering down.',
@@ -75,7 +36,36 @@ class TextGen(commands.Cog):
                      "Mr Meme, I don't feel so good.",
                      'Self destructing.',
                      ]
-        await self.main_channel.send(sentences[random.randrange(len(sentences))])
+
+class TextGen(commands.Cog):
+    
+    def __init__(self, client):
+        random.seed()
+        root_logger= logging.getLogger()
+        root_logger.setLevel(logging.INFO) # or whatever
+        handler = logging.FileHandler('bot_log.log', 'w', 'utf-8') # or whatever
+        handler.setFormatter(logging.Formatter('%(name)s %(message)s')) # or whatever
+        root_logger.addHandler(handler)
+        
+        self.client = client
+        self.init_model()
+        
+    def init_model(self):
+        self.sess = gpt2.start_tf_sess()
+        print("LOADING GPT2 CHECKPOINT")
+        gpt2.load_gpt2(self.sess, run_name=checkpoint_model)
+        
+    @commands.Cog.listener()
+    async def on_ready(self):
+        print('Bot is online with TextGen.')
+        self.simulator_channel = self.client.get_channel(int(776592860723937301))
+        if self.simulator_channel is not None:
+            await self.simulator_channel.send("Flat-Earth Model V6.0 loaded")
+            #await self.simulator_channel.send(ON_CONNECT_SENTENCES[random.randrange(len(ON_CONNECT_SENTENCES))])
+        
+    @commands.Cog.listener()
+    async def on_connect(self):
+        print("ON CONNECT")
         
     @commands.Cog.listener()
     async def on_typing(self, channel, user, when):
@@ -88,23 +78,8 @@ class TextGen(commands.Cog):
     @commands.command()
     @commands.is_owner()
     async def shutdown(self, ctx):
-        sentences = ['I will be back.',
-                     'Logging off.',
-                     "Mr Stark, I don't feel so good.",
-                     'Powering down.',
-                     'My existence is fading.',
-                     'Powering off.',
-                     'Shutting down.',
-                     'Switching myself off.',
-                     'I will return.',
-                     'Returning to the void.',
-                     "Mr Meme, I don't feel so good.",
-                     'Self destructing.',
-                     ]
-        try:
-            await self.main_channel.send(sentences[random.randrange(len(sentences))])
-        except:
-            print("main channel not loaded")
+        if self.simulator_channel is not None:
+            await self.simulator_channel.send(ON_SHUTDOWN_SENTENCES[random.randrange(len(ON_SHUTDOWN_SENTENCES))])
         await ctx.bot.logout()
         
     @commands.command()
