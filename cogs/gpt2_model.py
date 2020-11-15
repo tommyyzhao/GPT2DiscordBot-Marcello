@@ -7,7 +7,7 @@ import time
 import re
 import os
 
-checkpoint_model = 'run_flat_earth_v7'
+checkpoint_model = 'run_flat_earth_124M_v1.0'
 # some fun rejoin messages
 ON_CONNECT_SENTENCES = ['I am back.',
                      'I have returned.',
