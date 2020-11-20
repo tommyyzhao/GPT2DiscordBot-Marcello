@@ -1,0 +1,1 @@
+Finetuned GPT-2 checkpoints should go into this folder (files are too large to fit on github)
