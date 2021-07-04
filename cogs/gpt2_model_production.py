@@ -2,13 +2,14 @@ import discord
 from discord.ext import commands
 import gpt_2_simple as gpt2
 import random
-import logging
 import time
 import re
+import logging
 import os
 
-memeland_telegraph = "203186554624147457"
-secretbox = "507560608430817290"
+TEST_CHANNEL = 776592860723937301
+SECRET_TEST_CHANNEL = 507560608430817290
+FES_CHANNEL = 416242332241887244
 
 checkpoint_model = 'run_flat_earth_355M_v2.2'
 # some fun rejoin messages
@@ -66,8 +67,9 @@ class TextGen(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print('Bot is online with TextGen.')
-        self.simulator_channel = self.client.get_channel(int(776592860723937301))
-        self.secret_channel = self.client.get_channel(int(507560608430817290))
+        self.simulator_channel = self.client.get_channel(TEST_CHANNEL)
+        self.secret_channel = self.client.get_channel(SECRET_TEST_CHANNEL)
+        self.fes_channel = self.client.get_channel(FES_CHANNEL)
         if self.simulator_channel is not None:
             await self.secret_channel.send("Code updated")
             #await self.simulator_channel.send("Language model 3.1 loaded.")
@@ -85,7 +87,18 @@ class TextGen(commands.Cog):
             print('on message triggered')
             await self.randomMessageReply(message)
         #await message.channel.send(response)
-                
+        
+    @commands.command()
+    @commands.is_owner()
+    async def setM(self, ctx, *, msg):
+        if self.fes_channel is not None:
+            await self.fes_channel.send(msg)
+            
+    @commands.command()
+    @commands.is_owner()
+    async def debugM(self, ctx, *, msg):
+        if self.secret_channel is not None:
+            await self.secret_channel.send(msg)
     
     @commands.command()
     @commands.is_owner()
@@ -118,7 +131,7 @@ class TextGen(commands.Cog):
         
         
     @commands.command()
-    async def useBotHistory(self, ctx):
+    async def useBotInHistory(self, ctx):
         self.use_bothistory = not self.use_bothistory
         await ctx.send(f"Using bot messages as history: {self.use_bothistory}")
         
@@ -216,7 +229,47 @@ class TextGen(commands.Cog):
                 if clean_text.split()[0] not in allowed and random.random() > 0.25:
                     print('filtering short response')
                     logging.info(f'Response {i}: {clean_text} is less than a word long, filtering')
-                    filtered_responses.append(clean_text)
+                    continue
+            else:
+                filtered_responses.append(clean_text)
+                
+        if filtered_responses:
+            return filtered_responses
+        else:
+            return unfiltered_responses
+        
+    def filter_texts_history(self, texts, split):
+        filtered_responses = []
+        unfiltered_responses = []
+        
+        for i, text in enumerate(texts):
+            # clean generated text
+            logging.info(f'\nUNCLEANED RESPONSE {i}:\n{text}\n')
+            clean_text = ''.join(text.split(split)[1:]) # split by user_name 
+            clean_text = re.sub(' +', ' ', clean_text) #remove multiple spaces
+            
+            logging.info(f'\nSPLIT RESPONSE {i}:\n{text}\n')
+            # truncate at next user
+            try:
+                truncate_at = re.search('<[A-Za-z0-9 ]+>', clean_text).start() #find the next user's string
+                clean_text = clean_text[:truncate_at].strip()
+                logging.info(f'\nCLEANED RESPONSE {i}:\n{clean_text}')
+                if not clean_text:
+                    logging.info(f'\nCLEANED RESPONSE {i} is empty, skipping')
+                    continue
+            except:
+                logging.info(f'ERROR truncating cleaned text:\n{clean_text}')
+                print(f'ERROR truncating: {clean_text}')
+                continue
+            
+            unfiltered_responses.append(clean_text)
+            #check for low effort responses
+            if len(clean_text.split()) <= 1:
+                # discourage one word responses
+                allowed = ['no', 'yes', 'sure']
+                if clean_text.split()[0] not in allowed and random.random() > 0.25:
+                    print('filtering short response')
+                    logging.info(f'Response {i}: {clean_text} is less than a word long, filtering')
                     continue
             else:
                 filtered_responses.append(clean_text)
@@ -242,6 +295,8 @@ class TextGen(commands.Cog):
             # process bot messages
             simulated = False
             if author_name == "Intellectual Thought Generator":
+                if not self.use_bothistory:
+                    continue
                 for line in text.split('\n'):
                     if line.endswith('Bot says..'):
                         simulated = True
@@ -282,14 +337,24 @@ class TextGen(commands.Cog):
         
         other_user = str(ctx.message.author)
         other_user = other_user[:other_user.index('#')]
+        
+        if self.use_history:
+            # setup historical prompt
+            history_prompt = await self.get_historical_prompt(ctx.message, nmessages=15)
+            print('historical prompt is:\n' + history_prompt)
+            augmented_prompt = history_prompt + f'<{user_name}>'
+            split_prompt = augmented_prompt
+        else:
+            augmented_prompt = f'<{other_user}>\n{prompt}\n<{user_name}>\n'
+            split_prompt = augmented_prompt
+        
+        logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
             
         async with ctx.typing():
             self.is_inferencing = True
-            augmented_prompt = f'<{other_user}>\n{prompt}\n<{user_name}>\n'
-            logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
             texts = await self.inference(augmented_prompt, length=50)
             
-        filtered_responses = self.filter_texts(texts, user_name)
+        filtered_responses = self.filter_texts_history(texts, split_prompt)
         # process text
         response = random.sample(filtered_responses, 1)[0]
         
@@ -309,7 +374,7 @@ class TextGen(commands.Cog):
         
         
     @commands.command()
-    async def multiverse(self, ctx, *, prompt):
+    async def askthemultiverse(self, ctx, *, prompt):
         if self.is_inferencing:
             await ctx.send("Could not respond, already responding")
             return
@@ -379,8 +444,210 @@ class TextGen(commands.Cog):
             await ctx.send(reply)
                 
         self.is_inferencing = False
-                
+        
+        
+    @commands.command()
+    async def botchris(self, ctx, *, prompt):
+        if self.is_inferencing:
+            await ctx.send("Could not respond, already responding")
+            return
+        user_name = "crmbob5"
+        print(f'bot command received msg: {prompt} from channel {ctx.message.channel} with msg: {ctx.message.content}')
+        logging.info(f'\nbot command received MSG: {ctx.message.content} from CHANNEL: {ctx.message.channel}')
+        other_user = str(ctx.message.author)
+        other_user = other_user[:other_user.index('#')]
+            
+        async with ctx.typing():
+            self.is_inferencing = True
+            augmented_prompt = f'<{other_user}>\n{prompt}\n<{user_name}>\n'
+            logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
+            texts = await self.inference(augmented_prompt, length=50)
+            
+        filtered_responses = self.filter_texts(texts, user_name)
+        # process text
+        response = random.sample(filtered_responses, 1)[0]
+        logging.info(f'Chosen response:\n{response}')
+        lines = response.split('\n') #split on newline and limit num of lines in response
+        intro_line = f'{user_name} Bot says..'
+        lines = [intro_line] + lines
+        response = '\n'.join(lines[:self.BOT_LINE_LIMIT]) #limit # lines
+        print(f'Output response:\n{response}')
+        await ctx.send(response)
+        self.is_inferencing = False
+        
+    @commands.command()
+    async def botderek(self, ctx, *, prompt):
+        if self.is_inferencing:
+            await ctx.send("Could not respond, already responding")
+            return
+        user_name = "Wanderer"
+        print(f'bot command received msg: {prompt} from channel {ctx.message.channel} with msg: {ctx.message.content}')
+        logging.info(f'\nbot command received MSG: {ctx.message.content} from CHANNEL: {ctx.message.channel}')
+        other_user = str(ctx.message.author)
+        other_user = other_user[:other_user.index('#')]
+            
+        async with ctx.typing():
+            self.is_inferencing = True
+            augmented_prompt = f'<{other_user}>\n{prompt}\n<{user_name}>\n'
+            logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
+            texts = await self.inference(augmented_prompt, length=50)
+            
+        filtered_responses = self.filter_texts(texts, user_name)
+        # process text
+        response = random.sample(filtered_responses, 1)[0]
+        logging.info(f'Chosen response:\n{response}')
+        lines = response.split('\n') #split on newline and limit num of lines in response
+        intro_line = f'{user_name} Bot says..'
+        lines = [intro_line] + lines
+        response = '\n'.join(lines[:self.BOT_LINE_LIMIT]) #limit # lines
+        print(f'Output response:\n{response}')
+        await ctx.send(response)
+        self.is_inferencing = False
+        
+    @commands.command()
+    async def botcaleb(self, ctx, *, prompt):
+        if self.is_inferencing:
+            await ctx.send("Could not respond, already responding")
+            return
+        user_name = "Pandoge"
+        print(f'bot command received msg: {prompt} from channel {ctx.message.channel} with msg: {ctx.message.content}')
+        logging.info(f'\nbot command received MSG: {ctx.message.content} from CHANNEL: {ctx.message.channel}')
+        other_user = str(ctx.message.author)
+        other_user = other_user[:other_user.index('#')]
+            
+        async with ctx.typing():
+            self.is_inferencing = True
+            augmented_prompt = f'<{other_user}>\n{prompt}\n<{user_name}>\n'
+            logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
+            texts = await self.inference(augmented_prompt, length=50)
+            
+        filtered_responses = self.filter_texts(texts, user_name)
+        # process text
+        response = random.sample(filtered_responses, 1)[0]
+        logging.info(f'Chosen response:\n{response}')
+        lines = response.split('\n') #split on newline and limit num of lines in response
+        intro_line = f'{user_name} Bot says..'
+        lines = [intro_line] + lines
+        response = '\n'.join(lines[:self.BOT_LINE_LIMIT]) #limit # lines
+        print(f'Output response:\n{response}')
+        await ctx.send(response)
+        self.is_inferencing = False
+        
+    @commands.command()
+    async def botbolaji(self, ctx, *, prompt):
+        if self.is_inferencing:
+            await ctx.send("Could not respond, already responding")
+            return
+        user_name = "blownking"
+        print(f'bot command received msg: {prompt} from channel {ctx.message.channel} with msg: {ctx.message.content}')
+        logging.info(f'\nbot command received MSG: {ctx.message.content} from CHANNEL: {ctx.message.channel}')
+        other_user = str(ctx.message.author)
+        other_user = other_user[:other_user.index('#')]
+            
+        async with ctx.typing():
+            self.is_inferencing = True
+            augmented_prompt = f'<{other_user}>\n{prompt}\n<{user_name}>\n'
+            logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
+            texts = await self.inference(augmented_prompt, length=50)
+            
+        filtered_responses = self.filter_texts(texts, user_name)
+        # process text
+        response = random.sample(filtered_responses, 1)[0]
+        logging.info(f'Chosen response:\n{response}')
+        lines = response.split('\n') #split on newline and limit num of lines in response
+        intro_line = f'{user_name} Bot says..'
+        lines = [intro_line] + lines
+        response = '\n'.join(lines[:self.BOT_LINE_LIMIT]) #limit # lines
+        print(f'Output response:\n{response}')
+        await ctx.send(response)
+        self.is_inferencing = False
+        
+    @commands.command()
+    async def mrbabybot(self, ctx, *, prompt):
+        if self.is_inferencing:
+            await ctx.send("Could not respond, already responding")
+            return
+        user_name = "mrbabybob"
+        print(f'bot command received msg: {prompt} from channel {ctx.message.channel} with msg: {ctx.message.content}')
+        logging.info(f'\nbot command received MSG: {ctx.message.content} from CHANNEL: {ctx.message.channel}')
+        other_user = str(ctx.message.author)
+        other_user = other_user[:other_user.index('#')]
+            
+        async with ctx.typing():
+            self.is_inferencing = True
+            augmented_prompt = f'<{other_user}>\n{prompt}\n<{user_name}>\n'
+            logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
+            texts = await self.inference(augmented_prompt, length=50)
+            
+        filtered_responses = self.filter_texts(texts, user_name)
+        # process text
+        response = random.sample(filtered_responses, 1)[0]
+        logging.info(f'Chosen response:\n{response}')
+        lines = response.split('\n') #split on newline and limit num of lines in response
+        intro_line = f'{user_name} Bot says..'
+        lines = [intro_line] + lines
+        response = '\n'.join(lines[:self.BOT_LINE_LIMIT]) #limit # lines
+        print(f'Output response:\n{response}')
+        await ctx.send(response)
+        self.is_inferencing = False
+        
+    @commands.command()
+    async def botbenji(self, ctx, *, prompt):
+        if self.is_inferencing:
+            await ctx.send("Could not respond, already responding")
+            return
+        user_name = "BenjiMcmuscles"
+        print(f'bot command received msg: {prompt} from channel {ctx.message.channel} with msg: {ctx.message.content}')
+        logging.info(f'\nbot command received MSG: {ctx.message.content} from CHANNEL: {ctx.message.channel}')
+        other_user = str(ctx.message.author)
+        other_user = other_user[:other_user.index('#')]
+            
+        async with ctx.typing():
+            self.is_inferencing = True
+            augmented_prompt = f'<{other_user}>\n{prompt}\n<{user_name}>\n'
+            logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
+            texts = await self.inference(augmented_prompt, length=50)
+            
+        filtered_responses = self.filter_texts(texts, user_name)
+        # process text
+        response = random.sample(filtered_responses, 1)[0]
+        logging.info(f'Chosen response:\n{response}')
+        lines = response.split('\n') #split on newline and limit num of lines in response
+        intro_line = f'{user_name} Bot says..'
+        lines = [intro_line] + lines
+        response = '\n'.join(lines[:self.BOT_LINE_LIMIT]) #limit # lines
+        print(f'Output response:\n{response}')
+        await ctx.send(response)
+        self.is_inferencing = False
     
+    @commands.command()
+    async def botmili(self, ctx, *, prompt):
+        if self.is_inferencing:
+            await ctx.send("Could not respond, already responding")
+            return
+        user_name = "mynameismili"
+        print(f'bot command received msg: {prompt} from channel {ctx.message.channel} with msg: {ctx.message.content}')
+        logging.info(f'\nbot command received MSG: {ctx.message.content} from CHANNEL: {ctx.message.channel}')
+        other_user = str(ctx.message.author)
+        other_user = other_user[:other_user.index('#')]
+            
+        async with ctx.typing():
+            self.is_inferencing = True
+            augmented_prompt = f'<{other_user}>\n{prompt}\n<{user_name}>\n'
+            logging.info(f'Augmented prompt to be:\n{augmented_prompt}')
+            texts = await self.inference(augmented_prompt, length=50)
+            
+        filtered_responses = self.filter_texts(texts, user_name)
+        # process text
+        response = random.sample(filtered_responses, 1)[0]
+        logging.info(f'Chosen response:\n{response}')
+        lines = response.split('\n') #split on newline and limit num of lines in response
+        intro_line = f'{user_name} Bot says..'
+        lines = [intro_line] + lines
+        response = '\n'.join(lines[:self.BOT_LINE_LIMIT]) #limit # lines
+        print(f'Output response:\n{response}')
+        await ctx.send(response)
+        self.is_inferencing = False
         
 def setup(client):
     client.add_cog(TextGen(client))
