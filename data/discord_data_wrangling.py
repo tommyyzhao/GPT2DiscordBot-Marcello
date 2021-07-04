@@ -49,9 +49,8 @@ def reduce_duplicates(msg, min_repeats = 4):
     return new_string 
 
 
-files = ['flat-earth-discussions.json', 'saturday-nights-with-the-boys.json', 
-         'intellectual-thought.json', 'dm-8-group.json', 'dm-7-group.json', 'dm - crmbob5.json']
-random.shuffle(files)
+files = ['fe-discussions.json']
+
 messages = []
 for file in files:
     with open(f"./raw/{file}") as f:
@@ -93,6 +92,10 @@ for msg in messages:
     #remove end noise
     if content.endswith(']') or content.endswith('\\'): 
         content = content[:-1]
+    if content.startswith('.bot') or content.startswith('.askthemultiverse'):
+        content = content.replace('.bot', '')
+        content = content.replace('.askthemultiverse', '')
+        content = content.strip()
     #get rid of bot commands
     if content.startswith('/') or content.startswith('-') or content.startswith('.')\
         or content.startswith('Started a call') or content.startswith('Added a recipient')\
@@ -115,5 +118,5 @@ for msg in messages:
         text = text + f"\n<{author}>\n{content}"
         prev_author = author
     
-with open('original_flatearth_shuffled2.txt', 'w', encoding = 'utf-8') as f:
+with open('flatearth_dec.txt', 'w', encoding = 'utf-8') as f:
     f.write(text)
