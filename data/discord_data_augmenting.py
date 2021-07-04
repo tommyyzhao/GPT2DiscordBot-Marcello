@@ -11,45 +11,7 @@ import json
 import random
 import re
 
-# list of sets of relevant synonyms for the flat-earth discord
-synonym_set_list = [
-    {'bolaji', 'mobologo', 'bobol', 'bobo', 'bolagi', 'bolag', 'bolaj', 'mobo', 'boboli'},
-    {'caleb', 'clb', 'Caleb', 'kalub', 'clabu', 'kaleb', 'pandoge'},
-    {'derek', 'drk', 'derick', 'Derek'},
-    {'benji', 'adam', 'Adam', 'Benji'},
-    {'colin', 'conor', 'connor'},
-    {'eimer', 'elmer'},
-    {'mate', 'm8'},
-    {'bitch', 'bich'},
-    {'dumb', 'dum', 'stupid'},
-    {'gay', 'queer', 'homosexual'},
-    {'bruh', 'bro', 'bruv'},
-    {'pls', 'plz', 'please'},
-    {'yeah', 'yea', 'yep', 'yup', 'ye'},
-    {'boy', 'boi'},
-    {'babe', 'bb', 'BB'},
-    {'wut', 'wat'},
-    {'you', 'u'},
-    {'no', 'nah', 'nope'},
-    {'sucks', 'sux'},
-    {'love', 'lov', 'luv'},
-    {'true', 'tru'},
-    {'im', "i'm", "I'm", "Im"},
-    {'hows', "how's"},
-    {'i', "I"},
-    {'idk', "idek"},
-    {'with', "w"},
-    {'ima', "imma"},
-    {'lol', "haha", 'lmao'},
-    {'whos', "who's"},
-    {'because', "cause", "cuz"},
-    {'sexy', "hot", "attractive"},
-    {'ight', "aight", "alright"},
-    {'tho', "though"},
-    {'dont', "don't"},
-    {'youre', 'ur', "you're"},
-    {'yours', 'urs'},
-    ]
+
 
 # convert list of synonyms to usable dictionary
 synonyms = {}
@@ -88,3 +50,39 @@ with open('augmented3.txt', 'w', encoding = 'utf-8') as f:
             new_tokens.append('\n')
             new_line = ' '.join(new_tokens)
             f.write(new_line)
+ 
+# list of sets of relevant synonyms for the flat-earth discord
+synonym_set_list = [
+    {'bolaji', 'mobologo', 'bobol', 'bobo', 'bolagi', 'bolag', 'bolaj', 'mobo', 'boboli'},
+    {'caleb', 'clb', 'Caleb', 'kalub', 'clabu', 'kaleb', 'pandoge'},
+    {'derek', 'drk', 'derick', 'Derek'},
+    {'benji', 'adam', 'Adam', 'Benji'},
+    {'colin', 'conor', 'connor'},
+    {'eimer', 'elmer'},
+    {'mate', 'm8'},
+    {'bruh', 'bro', 'bruv'},
+    {'pls', 'plz', 'please'},
+    {'yeah', 'yea', 'yep', 'yup', 'ye'},
+    {'boy', 'boi'},
+    {'babe', 'bb', 'BB'},
+    {'wut', 'wat'},
+    {'you', 'u'},
+    {'no', 'nah', 'nope'},
+    {'sucks', 'sux'},
+    {'love', 'lov', 'luv'},
+    {'true', 'tru'},
+    {'im', "i'm", "I'm", "Im"},
+    {'hows', "how's"},
+    {'i', "I"},
+    {'idk', "idek"},
+    {'with', "w"},
+    {'ima', "imma"},
+    {'lol', "haha", 'lmao'},
+    {'whos', "who's"},
+    {'because', "cause", "cuz"},
+    {'ight', "aight", "alright"},
+    {'tho', "though"},
+    {'dont', "don't"},
+    {'youre', 'ur', "you're"},
+    {'yours', 'urs'},
+    ]
